@@ -50,23 +50,10 @@ class LanesDetectionOnFrame:
 
         return left_lines, right_lines
 
-    @staticmethod
-    def extend_line(line, y_bottom):
-        x1, y1, x2, y2 = line[0]
-        slope = (y2 - y1) / (x2 - x1) if (x2 - x1) != 0 else 999  # Avoid division by zero
-
-        # Extend the line to touch the bottom of the image while maintaining the slope
-        extended_x1 = int(x1 + (y_bottom - y1) / slope) if slope != 0 else x1
-        extended_x2 = int(x2 + (y_bottom - y2) / slope) if slope != 0 else x2
-
-        # Set y_top as the lower of y1 and y2
-        y_top = min(y1, y2)
-
-        return extended_x1, y_bottom, extended_x2, y_top
 
     @staticmethod
     def find_x_on_line(line, y3):
-        x1, y1, x2, y2 = line[0]
+        x1, y1, x2, y2 = line
         slope = (y2 - y1) / (x2 - x1) if (x2 - x1) != 0 else 999  # Avoid division by zero
         y_intercept = y1 - slope * x1
 
@@ -86,15 +73,26 @@ class LanesDetectionOnFrame:
                 most_populous_line = line
                 max_points = points_on_line
 
-        if most_populous_line is not None:
-            x3 = LanesDetectionOnFrame.find_x_on_line(most_populous_line, y_bottom)
-            x1, y1, x2, y2 = most_populous_line[0]
-            if y1 > y2:
-                most_populous_line = (x3, y_bottom, x2, y2)
-            else:
-                most_populous_line = (x3, y_bottom, x1, y1)
+        # if most_populous_line is not None:
+        #     x3 = LanesDetectionOnFrame.find_x_on_line(most_populous_line, y_bottom)
+        #     x1, y1, x2, y2 = most_populous_line[0]
+        #     if y1 > y2:
+        #         most_populous_line = (x3, y_bottom, x2, y2)
+        #     else:
+        #         most_populous_line = (x3, y_bottom, x1, y1)
 
         return most_populous_line
+
+    @staticmethod
+    def extend_line(line, y_bottom):
+        x3 = LanesDetectionOnFrame.find_x_on_line(line, y_bottom)
+        x1, y1, x2, y2 = line
+        if y1 > y2:
+            extended_line = (x3, y_bottom, x2, y2)
+        else:
+            extended_line = (x3, y_bottom, x1, y1)
+
+        return extended_line
 
     @staticmethod
     def find_lane_lines(image):
@@ -141,8 +139,11 @@ class LanesDetectionOnFrame:
         most_populous_right_line = None
         if lines_left is not None:
             most_populous_left_line = LanesDetectionOnFrame.find_most_populous_line(image, lines_left, y_bottom)
+            most_populous_left_line = LanesDetectionOnFrame.extend_line(most_populous_left_line[0], y_bottom)
+
         if lines_right is not None:
             most_populous_right_line = LanesDetectionOnFrame.find_most_populous_line(image, lines_right, y_bottom)
+            most_populous_right_line = LanesDetectionOnFrame.extend_line(most_populous_right_line[0], y_bottom)
 
         # Draw Lane Lines on Original Image
         if most_populous_left_line is not None:
