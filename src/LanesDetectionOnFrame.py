@@ -73,14 +73,6 @@ class LanesDetectionOnFrame:
                 most_populous_line = line
                 max_points = points_on_line
 
-        # if most_populous_line is not None:
-        #     x3 = LanesDetectionOnFrame.find_x_on_line(most_populous_line, y_bottom)
-        #     x1, y1, x2, y2 = most_populous_line[0]
-        #     if y1 > y2:
-        #         most_populous_line = (x3, y_bottom, x2, y2)
-        #     else:
-        #         most_populous_line = (x3, y_bottom, x1, y1)
-
         return most_populous_line
 
     @staticmethod
