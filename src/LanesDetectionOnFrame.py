@@ -7,17 +7,22 @@ class LanesDetectionOnFrame:
     LEFT_ANNOTATION = "Left <-"
     RIGHT_ANNOTATION = "Right ->"
 
-    def __init__(self, center_line_x, offset, frame_rate_per_second):
-        self.center_lane_x = 410
-        self.y_depth_search = 386
-        self.right_lane_x = 670
-        self.left_lane_x = 180
+    def __init__(self, center_line_x, y_depth_search, right_lane_x, left_lane_x, offset, frame_rate_per_second,
+                 debug=False):
+        # Variables to calibrate the frame
+        self.center_line_x = center_line_x
+        self.y_depth_search = y_depth_search
+        self.right_lane_x = right_lane_x
+        self.left_lane_x = left_lane_x
         self.offset = offset
         self.frame_rate_per_second = frame_rate_per_second
+
+        # Variables to keep track of the state of the road
         self.crossing_roads = False
         self.counter_frame = 0
         self.crossing_roads_lines = []
         self.cross_direction = None
+        self.debug = debug
 
     @staticmethod
     def preprocess_image(image):
@@ -56,7 +61,7 @@ class LanesDetectionOnFrame:
         return x3
 
     @staticmethod
-    def find_most_populous_line(image, lines, orientation="right"):
+    def find_most_populous_line(image, lines, orientation=None):
         most_populous_line = None
         max_points = 0
 
@@ -96,14 +101,81 @@ class LanesDetectionOnFrame:
     def calculate_mask(roi, edge_image):
         mask = np.zeros_like(edge_image)
         cv2.fillPoly(mask, [np.array(roi)], 255)
-        plt.imshow(mask)
-        plt.show()
         mask_edge = cv2.bitwise_and(edge_image, mask)
-        plt.imshow(mask_edge)
-        plt.show()
         return mask_edge
 
+    def detect_middle_line(self, image, edges):
+        height, width = edges.shape
+        y_bottom = height
+
+        roi_middle_vertices = [(self.center_line_x - 70, height),
+                               (self.center_line_x - 50, self.y_depth_search),
+                               (self.center_line_x + 50, self.y_depth_search),
+                               (self.center_line_x + 70, height)
+                               ]
+
+        self.draw_roi_lines_on_image(image, roi_middle_vertices)
+        masked_edges_middle = self.calculate_mask(roi_middle_vertices, edges)
+        lines_middle = cv2.HoughLinesP(masked_edges_middle, 6, np.pi / 180, threshold=30, minLineLength=25,
+                                       maxLineGap=200)
+        # plt.imshow(masked_edges_middle)
+        # plt.show()
+
+        if lines_middle is not None:
+            most_populous_middle_line = self.find_most_populous_line(image, lines_middle)
+            if most_populous_middle_line is not None:
+                most_populous_middle_line = self.extend_line(most_populous_middle_line[0], y_bottom)
+                self.draw_annotation_lane(image, most_populous_middle_line)
+                return most_populous_middle_line
+
+    def draw_roi_lines_on_image(self, image, roi_points):
+        if self.debug:
+            overlay = image.copy()
+            cv2.polylines(overlay, [np.array(roi_points)], isClosed=True, color=(0, 0, 255), thickness=4)
+            alpha = 0.2
+            cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0, image)
+
+    def calculate_line_x_distance_from_center(self, line):
+        x1, y1, x2, y2 = line
+        return abs(x1 - self.center_line_x)
+
+    def check_if_changing_lanes(self, image, edges, right_lane_detected, left_lane_detected):
+        threshold = 70
+        # no side road lanes detected, checking for lane in the center
+        if right_lane_detected is None and left_lane_detected is None:
+            middle_lane_detected = self.detect_middle_line(image, edges)
+            if middle_lane_detected is not None:
+                self.crossing_roads_lines.append(middle_lane_detected)
+                return self.calculate_line_x_distance_from_center(middle_lane_detected) < threshold
+
+        # only left lane detected
+        if right_lane_detected is None and left_lane_detected is not None:
+            if self.calculate_line_x_distance_from_center(left_lane_detected) < threshold:
+                self.crossing_roads_lines.append(left_lane_detected)
+                return True
+        # only right lane detected
+        elif right_lane_detected is not None and left_lane_detected is None:
+            if self.calculate_line_x_distance_from_center(right_lane_detected) < threshold:
+                self.crossing_roads_lines.append(right_lane_detected)
+                return True
+
+        return False
+
+    @staticmethod
+    def draw_annotation_lane(image, lane):
+        x1, y1, x2, y2 = lane
+        cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 8)
+
+    def draw_annotation_on_image(self, image, lanes_detected):
+        for lane in lanes_detected:
+            self.draw_annotation_lane(image, lane)
+
+        if self.cross_direction:
+            cv2.putText(image, f"Changing lane to {self.cross_direction}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1,
+                        (0, 0, 255), 2, cv2.LINE_AA)
+
     def find_lane_lines(self, image):
+        lanes_detected = []
         processed_image = self.preprocess_image(image)
         # Edge Detection
         edges = cv2.Canny(processed_image, 50, 150)
@@ -113,14 +185,17 @@ class LanesDetectionOnFrame:
         most_populous_right_line = None
 
         roi_left_vertices = [(self.left_lane_x, height),
-                             (self.center_lane_x - 1, height),
-                             (self.center_lane_x - 1, self.y_depth_search),
-                             (self.center_lane_x - 1 - self.offset, self.y_depth_search)]
+                             (self.center_line_x - 1, height),
+                             (self.center_line_x - 1, self.y_depth_search),
+                             (self.center_line_x - 1 - self.offset, self.y_depth_search)]
 
         roi_right_vertices = [(self.right_lane_x, height),
-                              (self.center_lane_x + 1, height),
-                              (self.center_lane_x + 1, self.y_depth_search),
-                              (self.center_lane_x + 1 + self.offset, self.y_depth_search)]
+                              (self.center_line_x + 1, height),
+                              (self.center_line_x + 1, self.y_depth_search),
+                              (self.center_line_x + 1 + self.offset, self.y_depth_search)]
+
+        self.draw_roi_lines_on_image(image, roi_left_vertices)
+        self.draw_roi_lines_on_image(image, roi_right_vertices)
 
         masked_edges_left = self.calculate_mask(roi_left_vertices, edges)
 
@@ -129,77 +204,45 @@ class LanesDetectionOnFrame:
         lines_right = cv2.HoughLinesP(masked_edges_right, 6, np.pi / 90, threshold=25, minLineLength=25, maxLineGap=200)
         lines_left = cv2.HoughLinesP(masked_edges_left, 6, np.pi / 90, threshold=25, minLineLength=25, maxLineGap=200)
 
-        if lines_left is None:
-            print("left line not found")
-        if lines_right is None:
-            print("right line not found")
-
         if lines_left is not None:
-            self.crossing_roads = False
-            self.crossing_roads_lines = []
             most_populous_left_line = self.find_most_populous_line(image, lines_left, orientation="left")
             if most_populous_left_line is not None:
                 most_populous_left_line = self.extend_line(most_populous_left_line[0], y_bottom)
+                lanes_detected.append(most_populous_left_line)
 
         if lines_right is not None:
-            self.crossing_roads = False
-            self.crossing_roads_lines = []
             most_populous_right_line = self.find_most_populous_line(image, lines_right, orientation="right")
             if most_populous_right_line is not None:
                 most_populous_right_line = self.extend_line(most_populous_right_line[0], y_bottom)
+                lanes_detected.append(most_populous_right_line)
 
-        # possible change lane scenario
-        # if lines_right is None and lines_left is None:
-        #     roi_middle_vertices = [(350, height),
-        #                            (370, 390),
-        #                            (520, 390),
-        #                            (550, height)
-        #                            ]
-        #
-        #     masked_edges_middle = self.calculate_mask(roi_middle_vertices, edges)
-        #
-        #     lines_middle = cv2.HoughLinesP(masked_edges_middle, 6, np.pi / 180, threshold=30, minLineLength=30,
-        #                                    maxLineGap=200)
-        #     if lines_middle is not None:
-        #         most_populous_middle_line = self.find_most_populous_line(image, lines_middle)
-        #         if most_populous_middle_line is not None:
-        #             self.crossing_roads = True
-        #             self.counter_frame = 0
-        #             most_populous_middle_line = self.extend_line(most_populous_middle_line[0],
-        #                                                          y_bottom)
-        #             self.crossing_roads_lines.append(most_populous_middle_line)
-        #             x1, y1, x2, y2 = most_populous_middle_line
-        #             cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 8)
-        #
-        # if len(self.crossing_roads_lines) == 5:
-        #     x1, y1, x2, y2 = self.crossing_roads_lines[0]
-        #     x3, y3, x4, y4 = self.crossing_roads_lines[4]
-        #     if x1 < x3:
-        #         self.cross_direction = self.LEFT_ANNOTATION
-        #     else:
-        #         self.cross_direction = self.RIGHT_ANNOTATION
-        #
-        # if self.cross_direction or 0 < self.counter_frame < self.frame_rate_per_second:
-        #     cv2.putText(image, f"Changing lane to {self.cross_direction}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1,
-        #                 (0, 0, 255), 2,
-        #                 cv2.LINE_AA)
-        #     self.counter_frame += 1
-        #
-        # if self.counter_frame == self.frame_rate_per_second:
-        #     self.counter_frame = 0
-        #     self.cross_direction = None
+        # possible scenario of changing lanes
+        if most_populous_right_line is None or most_populous_left_line is None:
+            if self.check_if_changing_lanes(image, edges, most_populous_right_line, most_populous_left_line):
+                self.crossing_roads = True
+                self.counter_frame = 1
+        elif most_populous_right_line is not None and most_populous_left_line is not None:
+            self.crossing_roads = False
+            self.crossing_roads_lines = []
 
-        # Draw Lane Lines on Original Image
-        if most_populous_left_line is not None:
-            x1, y1, x2, y2 = most_populous_left_line
-            cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 8)
+        if len(self.crossing_roads_lines) == 5:
+            x1, y1, x2, y2 = self.crossing_roads_lines[0]
+            x3, y3, x4, y4 = self.crossing_roads_lines[4]
+            if x1 < x3:
+                self.cross_direction = self.LEFT_ANNOTATION
+            else:
+                self.cross_direction = self.RIGHT_ANNOTATION
 
-        if most_populous_right_line is not None:
-            x1, y1, x2, y2 = most_populous_right_line
-            cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 8)
+        # if lane crossing is no longer detected, linger the annotation for a one more second and then reset
+        if not self.crossing_roads and self.counter_frame > 0:
+            self.counter_frame += 1
 
-        # Display the result
-        plt.imshow(image)
-        plt.show()
+        if self.counter_frame == self.frame_rate_per_second:
+            self.counter_frame = 0
+            self.cross_direction = None
+
+        self.draw_annotation_on_image(image, lanes_detected)
+        # plt.imshow(image)
+        # plt.show()
 
         return image
