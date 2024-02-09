@@ -81,9 +81,8 @@ if __name__ == '__main__':
     vid2_lane_detection = LanesDetectionOnFrame(**vid2_param_dict)
     record_movie(input_directory + video_input_filename, output_directory + video_output_filename,
                  vid2_lane_detection.find_lane_lines)
-    #
-    # # 3. distance approximation detection
 
+    # 3. distance approximation detection
     video_input_filename = 'distance_approximation.mp4'
     video_output_filename = f"{video_input_filename.split('.')[0]}_annotated.mp4"
     vid3_param_dict = {
@@ -93,7 +92,7 @@ if __name__ == '__main__':
         'left_lane_x': 218,
         'offset': 30,
         'frame_rate_per_second': 30,
-        'saturation_threshold': 120,
+        'saturation_threshold': 150,
         'rho': 6,
         'theta': np.pi / 60,
         'min_line_length': 50,
