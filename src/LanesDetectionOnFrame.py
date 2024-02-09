@@ -8,7 +8,7 @@ class LanesDetectionOnFrame:
     RIGHT_ANNOTATION = "Right ->"
 
     def __init__(self, center_line_x, y_depth_search, right_lane_x, left_lane_x, offset, frame_rate_per_second,
-                 debug=False):
+                 saturation_threshold, rho, theta, min_line_length, blind_detection_offset=1, debug=False):
         # Variables to calibrate the frame
         self.center_line_x = center_line_x
         self.y_depth_search = y_depth_search
@@ -16,6 +16,13 @@ class LanesDetectionOnFrame:
         self.left_lane_x = left_lane_x
         self.offset = offset
         self.frame_rate_per_second = frame_rate_per_second
+        self.saturation_threshold = saturation_threshold
+        self.blind_detection_offset = blind_detection_offset
+
+        # hough transform parameters
+        self.rho = rho
+        self.theta = theta
+        self.min_line_length = min_line_length
 
         # Variables to keep track of the state of the road
         self.crossing_roads = False
@@ -24,14 +31,17 @@ class LanesDetectionOnFrame:
         self.cross_direction = None
         self.debug = debug
 
-    @staticmethod
-    def preprocess_image(image):
+        self.high_warning_distance = 400
+        self.medium_warning_distance = 390
+
+        self.colors = []
+
+    def preprocess_image(self, image):
         height, width, _ = image.shape
 
         # Convert to HLS color space and threshold the saturation channel
         hls = cv2.cvtColor(image, cv2.COLOR_BGR2HLS)
-        saturation_threshold = 120
-        sat_binary = cv2.inRange(hls, (0, saturation_threshold, 0), (255, 255, 255))
+        sat_binary = cv2.inRange(hls, (0, self.saturation_threshold, 0), (255, 255, 255))
 
         # Create a mask to filter out non-lane regions
         mask = np.zeros_like(sat_binary)
@@ -77,6 +87,8 @@ class LanesDetectionOnFrame:
                 continue
             elif orientation == "left" and slope > 0:  # Ignore lines with positive slopes
                 continue
+            elif orientation == "center" and abs(slope) < 0.8:  # In the center we expect almost vertical lines
+                continue
 
             points_on_line = np.sum(cv2.line(np.zeros_like(image), (x1, y1), (x2, y2), (0, 0, 255), 1))
 
@@ -116,13 +128,13 @@ class LanesDetectionOnFrame:
 
         self.draw_roi_lines_on_image(image, roi_middle_vertices)
         masked_edges_middle = self.calculate_mask(roi_middle_vertices, edges)
-        lines_middle = cv2.HoughLinesP(masked_edges_middle, 6, np.pi / 180, threshold=30, minLineLength=25,
+        lines_middle = cv2.HoughLinesP(masked_edges_middle, 1, np.pi / 180, threshold=30, minLineLength=30,
                                        maxLineGap=200)
         # plt.imshow(masked_edges_middle)
         # plt.show()
 
         if lines_middle is not None:
-            most_populous_middle_line = self.find_most_populous_line(image, lines_middle)
+            most_populous_middle_line = self.find_most_populous_line(image, lines_middle, orientation="center")
             if most_populous_middle_line is not None:
                 most_populous_middle_line = self.extend_line(most_populous_middle_line[0], y_bottom)
                 self.draw_annotation_lane(image, most_populous_middle_line)
@@ -184,15 +196,47 @@ class LanesDetectionOnFrame:
         most_populous_left_line = None
         most_populous_right_line = None
 
+        # Detecting and removing vertical lines
+        # roi_center_vertices = [(self.left_lane_x-40, height),
+        #                        (self.right_lane_x+40, height),
+        #                        (self.center_line_x + self.offset+40, self.y_depth_search),
+        #                        (self.center_line_x - self.offset-40, self.y_depth_search)]
+        roi_center_vertices = [(self.left_lane_x - 25, height),
+                               (self.right_lane_x + 25, height),
+                               (self.center_line_x + self.offset + 25, self.y_depth_search),
+                               (self.center_line_x - self.offset - 25, self.y_depth_search)]
+        self.draw_roi_lines_on_image(image, roi_center_vertices)
+
+        masked_edges_center = self.calculate_mask(roi_center_vertices, edges)
+        center = cv2.HoughLinesP(masked_edges_center, 1, np.pi / 180, threshold=20, minLineLength=15, maxLineGap=10)
+
+        mask = np.zeros_like(edges)
+
+        vertical_lines_y = []
+
+        if center is not None:
+            for line in center:
+                x1, y1, x2, y2 = line[0]
+                slope = (y2 - y1) / (x2 - x1) if (x2 - x1) != 0 else np.inf
+                if abs(slope) < 0.2:  # Adjust the threshold as needed
+                    cv2.line(mask, (x1, y1), (x2, y2), 255, 2)
+                    cv2.line(image, (x1, y1), (x2, y2), (0, 255, 255), 5)
+                    vertical_lines_y.append(np.min([y1, y2]))
+
+            mask = cv2.bitwise_not(mask)
+            cv2.erode(mask, (100, 100), mask, iterations=5)
+
+            edges = cv2.bitwise_and(edges, edges, mask=mask)
+
         roi_left_vertices = [(self.left_lane_x, height),
-                             (self.center_line_x - 1, height),
-                             (self.center_line_x - 1, self.y_depth_search),
-                             (self.center_line_x - 1 - self.offset, self.y_depth_search)]
+                             (self.center_line_x - self.blind_detection_offset, height),
+                             (self.center_line_x - self.blind_detection_offset, self.y_depth_search),
+                             (self.center_line_x - self.blind_detection_offset - self.offset, self.y_depth_search)]
 
         roi_right_vertices = [(self.right_lane_x, height),
-                              (self.center_line_x + 1, height),
-                              (self.center_line_x + 1, self.y_depth_search),
-                              (self.center_line_x + 1 + self.offset, self.y_depth_search)]
+                              (self.center_line_x + self.blind_detection_offset, height),
+                              (self.center_line_x + self.blind_detection_offset, self.y_depth_search),
+                              (self.center_line_x + self.blind_detection_offset + self.offset, self.y_depth_search)]
 
         self.draw_roi_lines_on_image(image, roi_left_vertices)
         self.draw_roi_lines_on_image(image, roi_right_vertices)
@@ -201,8 +245,10 @@ class LanesDetectionOnFrame:
 
         masked_edges_right = self.calculate_mask(roi_right_vertices, edges)
 
-        lines_right = cv2.HoughLinesP(masked_edges_right, 6, np.pi / 90, threshold=25, minLineLength=25, maxLineGap=200)
-        lines_left = cv2.HoughLinesP(masked_edges_left, 6, np.pi / 90, threshold=25, minLineLength=25, maxLineGap=200)
+        lines_right = cv2.HoughLinesP(masked_edges_right, self.rho, self.theta, threshold=40,
+                                      minLineLength=self.min_line_length, maxLineGap=200)
+        lines_left = cv2.HoughLinesP(masked_edges_left, self.rho, self.theta, threshold=40,
+                                     minLineLength=self.min_line_length, maxLineGap=200)
 
         if lines_left is not None:
             most_populous_left_line = self.find_most_populous_line(image, lines_left, orientation="left")
@@ -225,9 +271,9 @@ class LanesDetectionOnFrame:
             self.crossing_roads = False
             self.crossing_roads_lines = []
 
-        if len(self.crossing_roads_lines) == 5:
+        if len(self.crossing_roads_lines) == 10:
             x1, y1, x2, y2 = self.crossing_roads_lines[0]
-            x3, y3, x4, y4 = self.crossing_roads_lines[4]
+            x3, y3, x4, y4 = self.crossing_roads_lines[9]
             if x1 < x3:
                 self.cross_direction = self.LEFT_ANNOTATION
             else:
@@ -242,7 +288,44 @@ class LanesDetectionOnFrame:
             self.cross_direction = None
 
         self.draw_annotation_on_image(image, lanes_detected)
-        # plt.imshow(image)
-        # plt.show()
+
+        # Define the border width
+        border_width = 10
+
+        # green = [0, 255, 0]
+        # red = [0, 0, 255]
+        # yellow = [0, 255, 255]
+        #
+        # color = green
+        #
+        # if len(vertical_lines_y) > 0:
+        #     print(np.max(vertical_lines_y))
+        #     if self.high_warning_distance > np.max(vertical_lines_y) > self.medium_warning_distance:
+        #         color = yellow
+        #     elif np.max(vertical_lines_y) > self.high_warning_distance:
+        #         color = red
+        # if len(self.colors) > 0:
+        #     if self.colors[-1] == red or self.colors[-1] == yellow:
+        #         if color == green:
+        #             print("Changing color to green")
+        #
+        #
+        # image = self.add_borders(image, color)
+        # self.colors.append(color)
 
         return image
+
+    @staticmethod
+    def add_borders(image, color):
+        border_width = 10
+        # Create a copy of the original image
+        bordered_image = np.copy(image)
+
+        # Set the border color for the top and bottom sides
+        bordered_image[:border_width, :] = color
+        bordered_image[-border_width:, :] = color
+
+        # Set the border color for the left and right sides
+        bordered_image[:, :border_width] = color
+        bordered_image[:, -border_width:] = color
+        return bordered_image
