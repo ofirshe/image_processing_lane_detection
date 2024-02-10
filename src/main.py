@@ -1,11 +1,11 @@
 import cv2
 import numpy as np
 
-from src.DistanceDetectionOnFrame import DistanceDetectionOnFrame
-from src.LanesDetectionOnFrame import LanesDetectionOnFrame
+from DistanceDetectionOnFrame import DistanceDetectionOnFrame
+from LanesDetectionOnFrame import LanesDetectionOnFrame
+from CrosswalkDetectionOnFrame import CrosswalkDetectionOnFrame
 
-
-def record_movie(video_input_path, video_output_path, lanes_detection_class, distance_detection_class=None):
+def record_movie(video_input_path, video_output_path, lanes_detection_class, distance_detection_class=None, crosswalk_detection_class=None):
     cap = cv2.VideoCapture(video_input_path)
 
     # Get video properties
@@ -25,6 +25,9 @@ def record_movie(video_input_path, video_output_path, lanes_detection_class, dis
 
         if distance_detection_class is not None:
             frame_annotations = distance_detection_class.annotate_frame(frame=frame, annotated_frame=frame_annotations)
+        
+        if crosswalk_detection_class is not None:
+            frame_annotations = crosswalk_detection_class.annotate_frame(frame=frame, annotated_frame=frame_annotations)
 
         final_image = cv2.addWeighted(frame, 0.2, frame_annotations, 1, 0)
 
@@ -40,8 +43,8 @@ def record_movie(video_input_path, video_output_path, lanes_detection_class, dis
 
 
 if __name__ == '__main__':
-    input_directory = '../input_videos/'
-    output_directory = '../annotated_videos/'
+    input_directory = f'./input_videos/'
+    output_directory = f'./annotated_videos/'
 
     # 1. lanes changing
     video_input_filename = 'change_lanes.mp4'
@@ -62,7 +65,7 @@ if __name__ == '__main__':
 
     vid1_lane_detection = LanesDetectionOnFrame(**vid1_param_dict)
     record_movie(input_directory + video_input_filename, output_directory + video_output_filename,
-                 vid1_lane_detection)
+                 vid1_lane_detection, distance_detection_class=None, crosswalk_detection_class=None)
 
     # 2. Night-Time Lane Detection
     video_input_filename = 'night_ride.mp4'
@@ -83,9 +86,9 @@ if __name__ == '__main__':
 
     vid2_lane_detection = LanesDetectionOnFrame(**vid2_param_dict)
     record_movie(input_directory + video_input_filename, output_directory + video_output_filename,
-                 vid2_lane_detection)
+                 vid2_lane_detection, distance_detection_class=None, crosswalk_detection_class=None)
 
-    # 3. distance approximation detection
+    # 3. Distance approximation detection
     video_input_filename = 'distance_detection_2.mp4'
     video_output_filename = f"{video_input_filename.split('.')[0]}_annotated.mp4"
     vid3_lanes_detection_param_dict = {
@@ -118,4 +121,34 @@ if __name__ == '__main__':
     vid3_distance_detection = DistanceDetectionOnFrame(**vid3_distance_detection_param_dict)
 
     record_movie(input_directory + video_input_filename, output_directory + video_output_filename,
-                 vid3_lane_detection, vid3_distance_detection)
+                 vid3_lane_detection, distance_detection_class=vid3_distance_detection, crosswalk_detection_class=None)
+
+    # 4. Crosswalk Detection
+    video_input_filename = 'crosswalks_detection.mp4'
+    video_output_filename = f"{video_input_filename.split('.')[0]}_annotated.mp4"
+    vid4_lanes_detection_param_dict = {
+        'center_line_x': 470,
+        'y_depth_search': 360,
+        'right_lane_x': 745,
+        'left_lane_x': 280,
+        'offset': 80,
+        'frame_rate_per_second': 30,
+        'saturation_threshold': 150,
+        'rho': 6,
+        'theta': np.pi / 90,
+        'min_line_length': 25,
+        'blind_detection_offset': 40,
+        'debug': True
+    }
+
+    vid4_crosswalk_detection_param_dict = {
+        'subsequent_frames': 20,
+        'debug': False
+    }
+
+    vid4_lane_detection = LanesDetectionOnFrame(**vid4_lanes_detection_param_dict)
+    vid4_crosswalk_detection = CrosswalkDetectionOnFrame(**vid4_crosswalk_detection_param_dict)
+
+    record_movie(input_directory + video_input_filename, output_directory + video_output_filename,
+                 vid4_lane_detection, distance_detection_class=None, crosswalk_detection_class=vid4_crosswalk_detection)
+
