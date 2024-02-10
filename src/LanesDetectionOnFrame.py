@@ -34,7 +34,6 @@ class LanesDetectionOnFrame:
         self.high_warning_distance = 400
         self.medium_warning_distance = 390
 
-        self.colors = []
 
     def preprocess_image(self, image):
         height, width, _ = image.shape
@@ -196,37 +195,32 @@ class LanesDetectionOnFrame:
         most_populous_left_line = None
         most_populous_right_line = None
 
-        # Detecting and removing vertical lines
-        # roi_center_vertices = [(self.left_lane_x-40, height),
-        #                        (self.right_lane_x+40, height),
-        #                        (self.center_line_x + self.offset+40, self.y_depth_search),
-        #                        (self.center_line_x - self.offset-40, self.y_depth_search)]
-        roi_center_vertices = [(self.left_lane_x - 25, height),
-                               (self.right_lane_x + 25, height),
-                               (self.center_line_x + self.offset + 25, self.y_depth_search),
-                               (self.center_line_x - self.offset - 25, self.y_depth_search)]
-        self.draw_roi_lines_on_image(image, roi_center_vertices)
-
-        masked_edges_center = self.calculate_mask(roi_center_vertices, edges)
-        center = cv2.HoughLinesP(masked_edges_center, 1, np.pi / 180, threshold=20, minLineLength=15, maxLineGap=10)
-
-        mask = np.zeros_like(edges)
-
-        vertical_lines_y = []
-
-        if center is not None:
-            for line in center:
-                x1, y1, x2, y2 = line[0]
-                slope = (y2 - y1) / (x2 - x1) if (x2 - x1) != 0 else np.inf
-                if abs(slope) < 0.2:  # Adjust the threshold as needed
-                    cv2.line(mask, (x1, y1), (x2, y2), 255, 2)
-                    cv2.line(image, (x1, y1), (x2, y2), (0, 255, 255), 5)
-                    vertical_lines_y.append(np.min([y1, y2]))
-
-            mask = cv2.bitwise_not(mask)
-            cv2.erode(mask, (100, 100), mask, iterations=5)
-
-            edges = cv2.bitwise_and(edges, edges, mask=mask)
+        # roi_center_vertices = [(self.left_lane_x - 25, height),
+        #                        (self.right_lane_x + 25, height),
+        #                        (self.center_line_x + self.offset + 25, self.y_depth_search),
+        #                        (self.center_line_x - self.offset - 25, self.y_depth_search)]
+        # self.draw_roi_lines_on_image(image, roi_center_vertices)
+        #
+        # masked_edges_center = self.calculate_mask(roi_center_vertices, edges)
+        # center = cv2.HoughLinesP(masked_edges_center, 1, np.pi / 180, threshold=20, minLineLength=15, maxLineGap=10)
+        #
+        # mask = np.zeros_like(edges)
+        #
+        # vertical_lines_y = []
+        #
+        # if center is not None:
+        #     for line in center:
+        #         x1, y1, x2, y2 = line[0]
+        #         slope = (y2 - y1) / (x2 - x1) if (x2 - x1) != 0 else np.inf
+        #         if abs(slope) < 0.2:  # Adjust the threshold as needed
+        #             cv2.line(mask, (x1, y1), (x2, y2), 255, 2)
+        #             cv2.line(image, (x1, y1), (x2, y2), (0, 255, 255), 5)
+        #             vertical_lines_y.append(np.min([y1, y2]))
+        #
+        #     mask = cv2.bitwise_not(mask)
+        #     cv2.erode(mask, (100, 100), mask, iterations=5)
+        #
+        #     edges = cv2.bitwise_and(edges, edges, mask=mask)
 
         roi_left_vertices = [(self.left_lane_x, height),
                              (self.center_line_x - self.blind_detection_offset, height),
@@ -288,30 +282,6 @@ class LanesDetectionOnFrame:
             self.cross_direction = None
 
         self.draw_annotation_on_image(image, lanes_detected)
-
-        # Define the border width
-        border_width = 10
-
-        # green = [0, 255, 0]
-        # red = [0, 0, 255]
-        # yellow = [0, 255, 255]
-        #
-        # color = green
-        #
-        # if len(vertical_lines_y) > 0:
-        #     print(np.max(vertical_lines_y))
-        #     if self.high_warning_distance > np.max(vertical_lines_y) > self.medium_warning_distance:
-        #         color = yellow
-        #     elif np.max(vertical_lines_y) > self.high_warning_distance:
-        #         color = red
-        # if len(self.colors) > 0:
-        #     if self.colors[-1] == red or self.colors[-1] == yellow:
-        #         if color == green:
-        #             print("Changing color to green")
-        #
-        #
-        # image = self.add_borders(image, color)
-        # self.colors.append(color)
 
         return image
 
