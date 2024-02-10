@@ -7,7 +7,7 @@ class CrosswalkDetectionOnFrame:
         self.subsequent_frames = subsequent_frames
         self.subsequent_frames_counter = subsequent_frames
         self.debug = debug
-        self.caution_text = "Watch out, there are crosswalks!"
+        self.caution_text = "Watch out, crosswalk ahead!"
 
     def annotate_frame(self, frame, annotated_frame):
         # Convert the frame to grayscale

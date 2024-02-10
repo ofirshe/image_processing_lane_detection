@@ -5,7 +5,9 @@ from DistanceDetectionOnFrame import DistanceDetectionOnFrame
 from LanesDetectionOnFrame import LanesDetectionOnFrame
 from CrosswalkDetectionOnFrame import CrosswalkDetectionOnFrame
 
-def record_movie(video_input_path, video_output_path, lanes_detection_class, distance_detection_class=None, crosswalk_detection_class=None):
+
+def record_movie(video_input_path, video_output_path, lanes_detection_class, distance_detection_class=None,
+                 crosswalk_detection_class=None):
     cap = cv2.VideoCapture(video_input_path)
 
     # Get video properties
@@ -25,7 +27,7 @@ def record_movie(video_input_path, video_output_path, lanes_detection_class, dis
 
         if distance_detection_class is not None:
             frame_annotations = distance_detection_class.annotate_frame(frame=frame, annotated_frame=frame_annotations)
-        
+
         if crosswalk_detection_class is not None:
             frame_annotations = crosswalk_detection_class.annotate_frame(frame=frame, annotated_frame=frame_annotations)
 
@@ -43,8 +45,8 @@ def record_movie(video_input_path, video_output_path, lanes_detection_class, dis
 
 
 if __name__ == '__main__':
-    input_directory = f'./input_videos/'
-    output_directory = f'./annotated_videos/'
+    input_directory = '../input_videos/'
+    output_directory = '../annotated_videos/'
 
     # 1. lanes changing
     video_input_filename = 'change_lanes.mp4'
@@ -151,4 +153,3 @@ if __name__ == '__main__':
 
     record_movie(input_directory + video_input_filename, output_directory + video_output_filename,
                  vid4_lane_detection, distance_detection_class=None, crosswalk_detection_class=vid4_crosswalk_detection)
-
