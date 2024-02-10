@@ -3,7 +3,8 @@ import numpy as np
 
 
 class DistanceDetectionOnFrame:
-    def __init__(self, center_line_x, y_depth_search, right_lane_x, left_lane_x, offset, debug=False):
+    def __init__(self, center_line_x, y_depth_search, right_lane_x, left_lane_x, offset, medium_warning_distance,
+                 high_warning_distance, debug=False):
         # Variables to calibrate the frame
         self.center_line_x = center_line_x
         self.y_depth_search = y_depth_search
@@ -12,8 +13,8 @@ class DistanceDetectionOnFrame:
         self.offset = offset
         self.debug = debug
 
-        self.high_warning_distance = 360
-        self.medium_warning_distance = 300
+        self.high_warning_distance = high_warning_distance
+        self.medium_warning_distance = medium_warning_distance
 
     @staticmethod
     def filter_black(frame):
@@ -107,9 +108,10 @@ class DistanceDetectionOnFrame:
         color = green
 
         for (x1, y1, x2, y2) in vehicles:
-            if y1 > self.medium_warning_distance:
+            y_max = np.max([y1, y2])
+            if y_max > self.medium_warning_distance:
                 color = yellow
-            if y1 > self.high_warning_distance:
+            if y_max > self.high_warning_distance:
                 color = red
             cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
 
