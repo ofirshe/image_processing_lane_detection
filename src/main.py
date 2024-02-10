@@ -62,7 +62,7 @@ if __name__ == '__main__':
 
     vid1_lane_detection = LanesDetectionOnFrame(**vid1_param_dict)
     record_movie(input_directory + video_input_filename, output_directory + video_output_filename,
-                 vid1_lane_detection.find_lane_lines)
+                 vid1_lane_detection)
 
     # 2. Night-Time Lane Detection
     video_input_filename = 'night_ride.mp4'
@@ -83,7 +83,7 @@ if __name__ == '__main__':
 
     vid2_lane_detection = LanesDetectionOnFrame(**vid2_param_dict)
     record_movie(input_directory + video_input_filename, output_directory + video_output_filename,
-                 vid2_lane_detection.find_lane_lines)
+                 vid2_lane_detection)
 
     # 3. distance approximation detection
     video_input_filename = 'distance_detection_2.mp4'
