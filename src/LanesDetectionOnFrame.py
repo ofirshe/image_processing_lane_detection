@@ -31,10 +31,6 @@ class LanesDetectionOnFrame:
         self.cross_direction = None
         self.debug = debug
 
-        self.high_warning_distance = 400
-        self.medium_warning_distance = 390
-
-
     def preprocess_image(self, image):
         height, width, _ = image.shape
 
