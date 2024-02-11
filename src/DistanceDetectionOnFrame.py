@@ -17,7 +17,7 @@ class DistanceDetectionOnFrame:
         self.medium_warning_distance = medium_warning_distance
 
     @staticmethod
-    def filter_black(frame):
+    def filter_dark(frame):
         hls = cv2.cvtColor(frame, cv2.COLOR_BGR2HLS)
 
         # Define range of black color in HLS
@@ -44,7 +44,7 @@ class DistanceDetectionOnFrame:
         # Convert frame to grayscale
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         height, width = gray_frame.shape
-        mask = self.filter_black(frame)
+        mask = self.filter_dark(frame)
         only_dark_result = cv2.bitwise_and(frame, frame, mask=mask)
 
         # Convert the result to binary
@@ -66,13 +66,6 @@ class DistanceDetectionOnFrame:
 
         # Iterate through contours
         for contour in contours:
-            # Calculate the area of the contour
-            area = cv2.contourArea(contour)
-
-            # If the contour area is too small, ignore it (noise)
-            # if area < min_area_threshold:
-            #     continue
-
             # Get the bounding box of the contour
             x, y, w, h = cv2.boundingRect(contour)
 

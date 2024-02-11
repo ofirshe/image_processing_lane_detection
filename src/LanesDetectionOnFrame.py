@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 class LanesDetectionOnFrame:
@@ -8,7 +7,7 @@ class LanesDetectionOnFrame:
     RIGHT_ANNOTATION = "Right ->"
 
     def __init__(self, center_line_x, y_depth_search, right_lane_x, left_lane_x, offset, frame_rate_per_second,
-                 saturation_threshold, rho, theta, min_line_length, blind_detection_offset=1, debug=False):
+                 binary_threshold, rho, theta, min_line_length, blind_detection_offset=1, debug=False):
         # Variables to calibrate the frame
         self.center_line_x = center_line_x
         self.y_depth_search = y_depth_search
@@ -16,7 +15,7 @@ class LanesDetectionOnFrame:
         self.left_lane_x = left_lane_x
         self.offset = offset
         self.frame_rate_per_second = frame_rate_per_second
-        self.saturation_threshold = saturation_threshold
+        self.binary_threshold = binary_threshold
         self.blind_detection_offset = blind_detection_offset
 
         # hough transform parameters
@@ -31,26 +30,35 @@ class LanesDetectionOnFrame:
         self.cross_direction = None
         self.debug = debug
 
+    # def preprocess_image(self, image):
+    #     height, width, _ = image.shape
+    #
+    #     # Convert to HLS color space and threshold the saturation channel
+    #     hls = cv2.cvtColor(image, cv2.COLOR_BGR2HLS)
+    #     sat_binary = cv2.inRange(hls, (0, self.saturation_threshold, 0), (255, 255, 255))
+    #
+    #     # Create a mask to filter out non-lane regions
+    #     mask = np.zeros_like(sat_binary)
+    #     roi_vertices = np.array(
+    #         [[(50, height), (width // 2 - 50, height // 2 + 50), (width // 2 + 50, height // 2 + 50),
+    #           (width - 50, height)]], dtype=np.int32)
+    #     cv2.fillPoly(mask, roi_vertices, 255)
+    #     masked_image = cv2.bitwise_and(sat_binary, mask)
+    #
+    #     # Apply morphological operations to reduce noise
+    #     kernel = np.ones((5, 5), np.uint8)
+    #     morph_image = cv2.morphologyEx(masked_image, cv2.MORPH_CLOSE, kernel)
+    #
+    #     return morph_image
+
     def preprocess_image(self, image):
-        height, width, _ = image.shape
+        processed_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        processed_image = cv2.GaussianBlur(processed_image, (5, 5), 0)
+        if self.binary_threshold is not None:
+            _, processed_image = cv2.threshold(processed_image, self.binary_threshold, 255, cv2.THRESH_BINARY)
+            processed_image = cv2.dilate(processed_image, (3, 3), iterations=3)
 
-        # Convert to HLS color space and threshold the saturation channel
-        hls = cv2.cvtColor(image, cv2.COLOR_BGR2HLS)
-        sat_binary = cv2.inRange(hls, (0, self.saturation_threshold, 0), (255, 255, 255))
-
-        # Create a mask to filter out non-lane regions
-        mask = np.zeros_like(sat_binary)
-        roi_vertices = np.array(
-            [[(50, height), (width // 2 - 50, height // 2 + 50), (width // 2 + 50, height // 2 + 50),
-              (width - 50, height)]], dtype=np.int32)
-        cv2.fillPoly(mask, roi_vertices, 255)
-        masked_image = cv2.bitwise_and(sat_binary, mask)
-
-        # Apply morphological operations to reduce noise
-        kernel = np.ones((5, 5), np.uint8)
-        morph_image = cv2.morphologyEx(masked_image, cv2.MORPH_CLOSE, kernel)
-
-        return morph_image
+        return processed_image
 
     @staticmethod
     def slope(x1, y1, x2, y2):
@@ -184,39 +192,13 @@ class LanesDetectionOnFrame:
     def find_lane_lines(self, image):
         lanes_detected = []
         processed_image = self.preprocess_image(image)
+
         # Edge Detection
         edges = cv2.Canny(processed_image, 50, 150)
         height, width = edges.shape
         y_bottom = height
         most_populous_left_line = None
         most_populous_right_line = None
-
-        # roi_center_vertices = [(self.left_lane_x - 25, height),
-        #                        (self.right_lane_x + 25, height),
-        #                        (self.center_line_x + self.offset + 25, self.y_depth_search),
-        #                        (self.center_line_x - self.offset - 25, self.y_depth_search)]
-        # self.draw_roi_lines_on_image(image, roi_center_vertices)
-        #
-        # masked_edges_center = self.calculate_mask(roi_center_vertices, edges)
-        # center = cv2.HoughLinesP(masked_edges_center, 1, np.pi / 180, threshold=20, minLineLength=15, maxLineGap=10)
-        #
-        # mask = np.zeros_like(edges)
-        #
-        # vertical_lines_y = []
-        #
-        # if center is not None:
-        #     for line in center:
-        #         x1, y1, x2, y2 = line[0]
-        #         slope = (y2 - y1) / (x2 - x1) if (x2 - x1) != 0 else np.inf
-        #         if abs(slope) < 0.2:  # Adjust the threshold as needed
-        #             cv2.line(mask, (x1, y1), (x2, y2), 255, 2)
-        #             cv2.line(image, (x1, y1), (x2, y2), (0, 255, 255), 5)
-        #             vertical_lines_y.append(np.min([y1, y2]))
-        #
-        #     mask = cv2.bitwise_not(mask)
-        #     cv2.erode(mask, (100, 100), mask, iterations=5)
-        #
-        #     edges = cv2.bitwise_and(edges, edges, mask=mask)
 
         roi_left_vertices = [(self.left_lane_x, height),
                              (self.center_line_x - self.blind_detection_offset, height),
