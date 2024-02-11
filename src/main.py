@@ -91,7 +91,7 @@ if __name__ == '__main__':
                  vid2_lane_detection, distance_detection_class=None, crosswalk_detection_class=None)
 
     # 3. Distance approximation detection
-    video_input_filename = 'distance_detection_2.mp4'
+    video_input_filename = 'distance_detection.mp4'
     video_output_filename = f"{video_input_filename.split('.')[0]}_annotated.mp4"
     vid3_lanes_detection_param_dict = {
         'center_line_x': 540,
