@@ -38,25 +38,18 @@ class DistanceDetectionOnFrame:
     def detect_vehicles(self, frame, center_line_x, y_depth_search, right_lane_x, left_lane_x, offset):
         min_width = 40
         min_height = 40
-        max_width = 200
-        max_height = 200
+        max_width = 500
+        max_height = 500
+        height, width, _ = frame.shape
 
-        # Convert frame to grayscale
-        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        height, width = gray_frame.shape
         mask = self.filter_dark(frame)
-        only_dark_result = cv2.bitwise_and(frame, frame, mask=mask)
-
-        # Convert the result to binary
-        binary = cv2.cvtColor(only_dark_result, cv2.COLOR_BGR2GRAY)
-        _, binary = cv2.threshold(binary, 1, 255, cv2.THRESH_BINARY)
 
         roi_center_vertices = [(left_lane_x, height),
                                (right_lane_x, height),
                                (center_line_x + offset, y_depth_search),
                                (center_line_x - offset, y_depth_search)]
 
-        binary = self.calculate_mask(roi_center_vertices, binary)
+        binary = self.calculate_mask(roi_center_vertices, mask)
 
         # Find contours in the foreground mask
         contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
