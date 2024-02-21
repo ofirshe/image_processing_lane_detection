@@ -30,26 +30,6 @@ class LanesDetectionOnFrame:
         self.cross_direction = None
         self.debug = debug
 
-    # def preprocess_image(self, image):
-    #     height, width, _ = image.shape
-    #
-    #     # Convert to HLS color space and threshold the saturation channel
-    #     hls = cv2.cvtColor(image, cv2.COLOR_BGR2HLS)
-    #     sat_binary = cv2.inRange(hls, (0, self.saturation_threshold, 0), (255, 255, 255))
-    #
-    #     # Create a mask to filter out non-lane regions
-    #     mask = np.zeros_like(sat_binary)
-    #     roi_vertices = np.array(
-    #         [[(50, height), (width // 2 - 50, height // 2 + 50), (width // 2 + 50, height // 2 + 50),
-    #           (width - 50, height)]], dtype=np.int32)
-    #     cv2.fillPoly(mask, roi_vertices, 255)
-    #     masked_image = cv2.bitwise_and(sat_binary, mask)
-    #
-    #     # Apply morphological operations to reduce noise
-    #     kernel = np.ones((5, 5), np.uint8)
-    #     morph_image = cv2.morphologyEx(masked_image, cv2.MORPH_CLOSE, kernel)
-    #
-    #     return morph_image
 
     def preprocess_image(self, image):
         processed_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -74,7 +54,7 @@ class LanesDetectionOnFrame:
         return x3
 
     @staticmethod
-    def find_most_populous_line(image, lines, orientation=None):
+    def find_suitable_line(image, lines, orientation=None):
         most_populous_line = None
         max_points = 0
 
@@ -93,11 +73,11 @@ class LanesDetectionOnFrame:
             elif orientation == "center" and abs(slope) < 0.8:  # In the center we expect almost vertical lines
                 continue
 
-            points_on_line = np.sum(cv2.line(np.zeros_like(image), (x1, y1), (x2, y2), (0, 0, 255), 1))
+            line_length = np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
-            if points_on_line > max_points:
+            if line_length > max_points:
                 most_populous_line = line
-                max_points = points_on_line
+                max_points = line_length
 
         return most_populous_line
 
@@ -133,11 +113,9 @@ class LanesDetectionOnFrame:
         masked_edges_middle = self.calculate_mask(roi_middle_vertices, edges)
         lines_middle = cv2.HoughLinesP(masked_edges_middle, 1, np.pi / 180, threshold=30, minLineLength=30,
                                        maxLineGap=200)
-        # plt.imshow(masked_edges_middle)
-        # plt.show()
 
         if lines_middle is not None:
-            most_populous_middle_line = self.find_most_populous_line(image, lines_middle, orientation="center")
+            most_populous_middle_line = self.find_suitable_line(image, lines_middle, orientation="center")
             if most_populous_middle_line is not None:
                 most_populous_middle_line = self.extend_line(most_populous_middle_line[0], y_bottom)
                 self.draw_annotation_lane(image, most_populous_middle_line)
@@ -223,13 +201,13 @@ class LanesDetectionOnFrame:
                                      minLineLength=self.min_line_length, maxLineGap=200)
 
         if lines_left is not None:
-            most_populous_left_line = self.find_most_populous_line(image, lines_left, orientation="left")
+            most_populous_left_line = self.find_suitable_line(image, lines_left, orientation="left")
             if most_populous_left_line is not None:
                 most_populous_left_line = self.extend_line(most_populous_left_line[0], y_bottom)
                 lanes_detected.append(most_populous_left_line)
 
         if lines_right is not None:
-            most_populous_right_line = self.find_most_populous_line(image, lines_right, orientation="right")
+            most_populous_right_line = self.find_suitable_line(image, lines_right, orientation="right")
             if most_populous_right_line is not None:
                 most_populous_right_line = self.extend_line(most_populous_right_line[0], y_bottom)
                 lanes_detected.append(most_populous_right_line)
