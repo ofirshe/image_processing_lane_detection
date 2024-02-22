@@ -20,8 +20,21 @@ This project aims to provide a comprehensive lane detection system for dashcam v
 
 ## Examples
 1. Lane detection and lane change detection:
+   
    ![lanes1](https://github.com/ofirshe/image_processing_lane_detection/assets/122673402/a6717ab4-625c-448e-9d79-cc13bfbc9805)
-2. 
+
+2. Proximity-Based Vehicle Detection:
+   
+   ![night](https://github.com/ofirshe/image_processing_lane_detection/assets/122673402/994b84bd-3d8c-4778-85d5-77068bcad2d8)
+
+3. Crosswalk Detection:
+   
+   ![cross](https://github.com/ofirshe/image_processing_lane_detection/assets/122673402/410f4ee1-1a34-423f-9160-e1649f508227)
+
+4. Night-Time Lane Detection:
+   ![night1](https://github.com/ofirshe/image_processing_lane_detection/assets/122673402/29b15429-40bc-4400-bfe3-1ba50dc896f0)
+
+
 
 
 ## Dependencies
@@ -29,5 +42,6 @@ This project aims to provide a comprehensive lane detection system for dashcam v
 - NumPy
 
 ## Contributors
-- [Your Name](https://github.com/yourusername)
+- [Michelle Saia](https://github.com/michelle1shaia)
+- [Ofir Shemesh](https://github.com/ofirshe)
 
