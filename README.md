@@ -4,7 +4,7 @@
 This project aims to provide a comprehensive lane detection system for dashcam videos, along with additional features such as crosswalk detection, proximity-based vehicle detection for collision avoidance, and night-time lane detection. The system processes real-world dashcam footage, annotating each frame with accurate lane markings and relevant annotations.
 
 ## Features Implemented
-1. **LanesDetectionOnFrame:** This class is responsible for detecting and annotating lane markings on each frame of the input video. It utilizes techniques such as least squares, Hough transform, and Canny edge detection to accurately identify lane boundaries.
+1. **LanesDetectionOnFrame:** This class is responsible for detecting and annotating lane markings on each frame of the input video. It utilizes techniques such as Hough transform, and Canny edge detection to accurately identify lane boundaries.
 
 2. **CrosswalkDetectionOnFrame:** Implements algorithms to detect and highlight crosswalks in the video footage. It utilizes pattern recognition and line detection techniques to differentiate crosswalks from other road markings.
 
@@ -17,6 +17,11 @@ This project aims to provide a comprehensive lane detection system for dashcam v
 2. Ensure you have the necessary dependencies installed. You may use the requirements.txt file to install them using pip.
 3. Run the main class, providing the path to the input video(s) as arguments.
 4. The program will process the videos, apply the annotations, and generate output videos with annotated features.
+
+## Examples
+1. Lane detection and lane change detection:
+   ![lanes1](https://github.com/ofirshe/image_processing_lane_detection/assets/122673402/a6717ab4-625c-448e-9d79-cc13bfbc9805)
+2. 
 
 
 ## Dependencies
