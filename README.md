@@ -32,8 +32,8 @@ This project aims to provide a comprehensive lane detection system for dashcam v
    ![cross](https://github.com/ofirshe/image_processing_lane_detection/assets/122673402/410f4ee1-1a34-423f-9160-e1649f508227)
 
 4. Night-Time Lane Detection:
+   
    ![night1](https://github.com/ofirshe/image_processing_lane_detection/assets/122673402/29b15429-40bc-4400-bfe3-1ba50dc896f0)
-
 
 
 
