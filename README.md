@@ -18,7 +18,9 @@ This project aims to provide a comprehensive lane detection system for dashcam v
 3. Run the main class, providing the path to the input video(s) as arguments.
 4. The program will process the videos, apply the annotations, and generate output videos with annotated features.
 
-## Examples [it takes few seconds for the gifs to load]
+## Examples
+[The gifs may take a few seconds to load]
+
 1. Lane detection and lane change detection:
    
    ![lanes1](https://github.com/ofirshe/image_processing_lane_detection/assets/122673402/a6717ab4-625c-448e-9d79-cc13bfbc9805)
